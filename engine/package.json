@@ -1,0 +1,16 @@
+{
+  "name": "triptab-engine",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test --test-force-exit *.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "MIT-0",
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

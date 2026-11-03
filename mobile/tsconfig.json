@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../node_modules/@react-native/typescript-config/tsconfig.json",
+  "compilerOptions": {
+    "rootDirs": [".", "../engine"],
+    "lib": ["ES2022", "DOM"],
+    "types": []
+  },
+  "include": ["**/*.ts", "**/*.tsx", "../engine/**/*.ts"],
+  "exclude": ["**/node_modules", "**/Pods", "../engine/**/*.test.ts"]
+}

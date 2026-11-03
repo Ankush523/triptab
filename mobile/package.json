@@ -1,0 +1,50 @@
+{
+  "name": "triptab-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "bash scripts/ios-run.sh",
+    "ios:pods": "bash scripts/ios-pods.sh",
+    "start": "react-native start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.25.0",
+    "@offline-protocol/mesh-sdk": "^0.31.0",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-navigation/bottom-tabs": "^7.4.2",
+    "@react-navigation/native": "^7.1.14",
+    "@react-navigation/native-stack": "^7.3.21",
+    "@sayem314/react-native-keep-awake": "^1.3.1",
+    "react": "19.1.1",
+    "react-native": "0.82.1",
+    "react-native-gesture-handler": "^2.28.0",
+    "react-native-get-random-values": "^1.11.0",
+    "react-native-haptic-feedback": "^3.0.0",
+    "react-native-linear-gradient": "^2.8.3",
+    "react-native-safe-area-context": "^5.5.2",
+    "react-native-screens": "^4.16.0",
+    "react-native-svg": "^15.16.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/preset-env": "^7.25.3",
+    "@react-native-community/cli": "20.0.0",
+    "@react-native-community/cli-platform-android": "20.0.0",
+    "@react-native-community/cli-platform-ios": "20.0.0",
+    "@react-native/babel-preset": "0.82.1",
+    "@react-native/eslint-config": "0.82.1",
+    "@react-native/metro-config": "0.82.1",
+    "@react-native/typescript-config": "0.82.1",
+    "@types/react": "^19.1.1",
+    "eslint": "^8.19.0",
+    "prettier": "2.8.8",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT-0"
+}
