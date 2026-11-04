@@ -32,6 +32,20 @@ run_ios() {
   exec npx react-native run-ios "${args[@]}"
 }
 
+install_pods() {
+  if [[ -d "$ROOT/../patches" ]]; then
+    echo "→ Applying npm patches (codegen / native deps)…"
+    (cd "$ROOT/.." && npx patch-package)
+  fi
+  cd "$ROOT"
+  if [[ -f Gemfile ]]; then
+    bundle check >/dev/null 2>&1 || bundle install
+    (cd ios && bundle exec pod install)
+  else
+    cd ios && pod install
+  fi
+}
+
 physical_udid() {
   xcrun devicectl list devices 2>/dev/null \
     | grep -E 'physical' \
@@ -44,7 +58,7 @@ UDID="$(physical_udid || true)"
 if [[ -n "$UDID" ]]; then
   echo "→ Installing on physical device ($UDID) [Release — stable on hardware]"
   write_packager_env
-  (cd "$ROOT/ios" && bundle exec pod install >/dev/null)
+  install_pods
   run_ios --device "$UDID" --mode Release
 fi
 

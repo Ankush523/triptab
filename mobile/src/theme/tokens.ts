@@ -23,6 +23,14 @@ export const colors = {
   gradientStart: '#2563EB',
   gradientMid: '#6366F1',
   gradientEnd: '#0EA5E9',
+  tabBar: '#FFFFFF',
+  header: '#FFFFFF',
+};
+
+/** Aurora-style hero band (design-system: gradient mesh) */
+export const heroGradient = {
+  colors: ['#1D4ED8', '#4F46E5', '#0EA5E9', '#2563EB'],
+  locations: [0, 0.35, 0.72, 1],
 };
 
 export const radii = {
@@ -46,20 +54,20 @@ export const shadow = Platform.select({
   ios: {
     card: {
       shadowColor: '#0F172A',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.08,
-      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
     },
     float: {
       shadowColor: '#0F172A',
-      shadowOffset: { width: 0, height: 12 },
-      shadowOpacity: 0.12,
-      shadowRadius: 32,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.1,
+      shadowRadius: 20,
     },
   },
   default: {
-    card: { elevation: 4 },
-    float: { elevation: 8 },
+    card: { elevation: 3 },
+    float: { elevation: 6 },
   },
 });
 

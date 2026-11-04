@@ -7,6 +7,10 @@
   "scripts": {
     "test": "npm test -w triptab-engine",
     "typecheck": "npm run typecheck -w triptab-engine && npm run typecheck -w triptab-mobile",
-    "mobile:start": "npm start -w triptab-mobile"
+    "mobile:start": "npm start -w triptab-mobile",
+    "postinstall": "patch-package"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.0"
   }
 }

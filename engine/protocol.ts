@@ -35,6 +35,8 @@ export type LedgerSnapshot = {
   balances: Record<string, number>;
   settlements: Settlement[];
   expenses: Expense[];
+  /** Display names for every member id in `balances` (synced from host). */
+  memberNames: Record<string, string>;
 };
 
 export type TripPing = {

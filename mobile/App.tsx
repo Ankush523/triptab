@@ -2,7 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import {
+  initialWindowMetrics,
+  SafeAreaProvider,
+  SafeAreaView,
+} from 'react-native-safe-area-context';
 import { HomeScreen, type HomeAction } from './src/screens/HomeScreen';
 import type { TripStart } from './src/TripSession';
 import { ErrorBoundary } from './src/ui/ErrorBoundary';
@@ -37,14 +41,14 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <SafeAreaProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <ErrorBoundary>
           {session ? (
             <Suspense
               fallback={
-                <View style={styles.boot}>
+                <SafeAreaView style={styles.boot} edges={['top', 'bottom', 'left', 'right']}>
                   <ActivityIndicator color={colors.primary} size="large" />
-                </View>
+                </SafeAreaView>
               }
             >
               <TripSession name={name} start={session} onHome={() => setSession(null)} />

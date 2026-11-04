@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { NearbyRoom, type RoomCallbacks, type RoomOptions } from './room';
 
 /**
@@ -17,17 +17,30 @@ export function useNearbyRoom(options: RoomOptions & RoomCallbacks) {
     [room],
   );
 
-  const state = useSyncExternalStore(room.subscribe, room.getSnapshot);
+  const snapshot = useSyncExternalStore(room.subscribe, room.getSnapshot);
 
-  return {
-    ...state,
-    host: room.host,
-    discover: room.discover,
-    join: room.join,
-    send: room.send,
-    broadcast: room.broadcast,
-    sign: room.sign,
-    verify: room.verify,
-    leave: room.leave,
-  };
+  return useMemo(
+    () => ({
+      ...snapshot,
+      host: room.host,
+      discover: room.discover,
+      join: room.join,
+      send: room.send,
+      broadcast: room.broadcast,
+      sign: room.sign,
+      verify: room.verify,
+      leave: room.leave,
+    }),
+    [
+      snapshot.status,
+      snapshot.error,
+      snapshot.role,
+      snapshot.localId,
+      snapshot.hostId,
+      snapshot.hosts,
+      snapshot.peers,
+      snapshot.groupId,
+      room,
+    ],
+  );
 }

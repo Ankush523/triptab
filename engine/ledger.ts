@@ -7,7 +7,7 @@ export function assertCents(value: number, label = 'amount'): void {
 }
 
 export function emptyLedger(): LedgerSnapshot {
-  return { version: 0, balances: {}, settlements: [], expenses: [] };
+  return { version: 0, balances: {}, settlements: [], expenses: [], memberNames: {} };
 }
 
 /** Equal split; remainder cents go to the payer so balances sum to zero. */
@@ -55,11 +55,15 @@ export function recomputeLedger(
   for (const expense of expenses) {
     working = applyExpenseToBalances(working, expense);
   }
+  const memberNames: Record<string, string> = {};
+  for (const m of members) memberNames[m.id] = m.name;
+
   return {
     version,
     balances: working,
     settlements: greedySettlements(working),
     expenses: [...expenses],
+    memberNames,
   };
 }
 

@@ -133,11 +133,13 @@ describe('host/member protocol', () => {
     router.register(memberMe.id, (from, msg) => member.message(from, msg));
 
     host.peerUp(memberMe.id);
-    member.peerUp(hostMe.id);
-    member.requestJoin('Sam');
+    member.pickHost(hostMe.id, 'Sam');
 
     assert.equal(member.view.myMemberId, 'm1');
     assert.ok((member.view.ledger?.version ?? 0) >= 0);
+    assert.equal(member.view.roster.length, 2);
+    assert.equal(member.view.roster.find(r => r.id === 'm0')?.name, 'Alex');
+    assert.equal(member.view.roster.find(r => r.id === 'm1')?.name, 'Sam');
 
     host.startSplitting();
     const vBefore = host.view.ledger.version;

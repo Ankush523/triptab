@@ -2,6 +2,7 @@ import React from 'react';
 import { Share, StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '../components/AppButton';
 import { GlassCard } from '../components/GlassCard';
+import { PageHeader } from '../components/PageHeader';
 import { Screen } from '../components/Screen';
 import { colors, space, type } from '../theme/tokens';
 
@@ -24,8 +25,10 @@ export function DebriefScreen({ summary, onDone }: Props) {
         </View>
       }
     >
-      <Text style={styles.title}>Trip complete</Text>
-      <Text style={styles.sub}>Share this breakdown with your group — no signal required.</Text>
+      <PageHeader
+        title="Trip complete"
+        subtitle="Share this breakdown with your group — no signal required."
+      />
       <GlassCard>
         <Text style={styles.mono} selectable>
           {summary}
@@ -36,8 +39,6 @@ export function DebriefScreen({ summary, onDone }: Props) {
 }
 
 const styles = StyleSheet.create({
-  title: { ...type.title, color: colors.text, marginTop: space.lg },
-  sub: { ...type.body, color: colors.textSecondary, marginBottom: space.lg },
   mono: { ...type.body, color: colors.text },
   footerActions: { gap: space.sm },
 });

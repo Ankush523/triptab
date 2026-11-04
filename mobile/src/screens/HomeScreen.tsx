@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
 import { AppTextField } from '../components/AppTextField';
+import { CurrencyChips } from '../components/CurrencyChips';
 import { GlassCard } from '../components/GlassCard';
+import { HeroHeader } from '../components/HeroHeader';
 import { IconRadio, IconUsers, IconWallet } from '../components/Icons';
 import { Screen } from '../components/Screen';
 import { colors, space, type } from '../theme/tokens';
@@ -17,23 +20,32 @@ type Props = {
   onAction: (action: HomeAction) => void;
 };
 
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'INR'];
-
 export function HomeScreen({ name, setName, onAction }: Props) {
+  const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('Weekend getaway');
   const [currency, setCurrency] = useState('USD');
+  const ready = name.trim().length > 0;
+
+  const bodyPad = {
+    paddingLeft: space.lg + insets.left,
+    paddingRight: space.lg + insets.right,
+  };
 
   return (
-    <Screen scroll hero>
-      <View style={styles.heroText}>
-        <Text style={styles.kicker}>Trip Tab</Text>
-        <Text style={styles.headline}>Group expenses{'\n'}without internet.</Text>
-        <Text style={styles.sub}>
-          One phone hosts the trip. Everyone nearby adds costs and sees who owes whom — over
-          Bluetooth mesh.
-        </Text>
-      </View>
-
+    <Screen
+      scroll
+      statusBar="light"
+      edgeToEdgeTop
+      header={
+        <HeroHeader
+          bleedUnderStatusBar
+          kicker="OFFLINE · BLUETOOTH MESH"
+          title={'Group expenses\nwithout internet.'}
+          subtitle="One phone hosts the trip. Everyone nearby adds costs and sees who owes whom."
+        />
+      }
+    >
+      <View style={[styles.body, bodyPad]}>
       <GlassCard style={styles.card}>
         <AppTextField
           label="Your name"
@@ -41,41 +53,44 @@ export function HomeScreen({ name, setName, onAction }: Props) {
           onChangeText={setName}
           autoCapitalize="words"
           returnKeyType="done"
+          placeholder="How your group will see you"
         />
       </GlassCard>
 
       <GlassCard style={styles.card}>
-        <View style={styles.row}>
-          <IconWallet color={colors.primary} />
-          <Text style={styles.cardTitle}>Start a trip</Text>
+        <View style={styles.cardHead}>
+          <View style={[styles.iconWrap, styles.iconPrimary]}>
+            <IconWallet color={colors.primary} size={22} />
+          </View>
+          <View style={styles.cardHeadText}>
+            <Text style={styles.cardTitle}>Start a trip</Text>
+            <Text style={styles.cardHint}>You become the host on this phone</Text>
+          </View>
         </View>
-        <AppTextField label="Trip name" value={title} onChangeText={setTitle} />
-        <AppTextField
-          label="Currency (ISO)"
-          value={currency}
-          onChangeText={v => setCurrency(v.toUpperCase().slice(0, 3))}
-          autoCapitalize="characters"
-          hint={`Common: ${CURRENCIES.join(', ')}`}
-        />
+        <AppTextField label="Trip name" value={title} onChangeText={setTitle} placeholder="Beach week, ski trip…" />
+        <Text style={styles.fieldLabel}>Currency</Text>
+        <CurrencyChips value={currency} onChange={setCurrency} />
         <AppButton
           label="Host this trip"
-          disabled={!name.trim()}
+          disabled={!ready}
           onPress={() => onAction({ kind: 'host', title, currency: currency || 'USD' })}
         />
       </GlassCard>
 
       <GlassCard style={styles.card}>
-        <View style={styles.row}>
-          <IconRadio color={colors.cta} />
-          <Text style={styles.cardTitle}>Join nearby</Text>
+        <View style={styles.cardHead}>
+          <View style={[styles.iconWrap, styles.iconAccent]}>
+            <IconRadio color={colors.cta} size={22} />
+          </View>
+          <View style={styles.cardHeadText}>
+            <Text style={styles.cardTitle}>Join nearby</Text>
+            <Text style={styles.cardHint}>Pick a trip broadcasting over Bluetooth</Text>
+          </View>
         </View>
-        <Text style={styles.cardBody}>
-          Turn on Bluetooth and pick a trip hosted by someone in your group.
-        </Text>
         <AppButton
           label="Find trips nearby"
           variant="secondary"
-          disabled={!name.trim()}
+          disabled={!ready}
           onPress={() => onAction({ kind: 'join' })}
         />
       </GlassCard>
@@ -84,25 +99,35 @@ export function HomeScreen({ name, setName, onAction }: Props) {
         <IconUsers size={18} color={colors.textMuted} />
         <Text style={styles.trustText}>No account · No cloud · 2–8 travelers</Text>
       </View>
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  heroText: { marginBottom: space.lg, gap: space.sm, paddingTop: 96 },
-  kicker: { ...type.label, color: 'rgba(255,255,255,0.85)' },
-  headline: { ...type.hero, color: '#FFFFFF' },
-  sub: { ...type.body, color: 'rgba(255,255,255,0.88)', maxWidth: 340 },
-  card: { marginBottom: space.md, gap: space.md },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  body: { gap: space.md, marginTop: space.md },
+  card: { gap: space.md },
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  iconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconPrimary: { backgroundColor: 'rgba(37,99,235,0.1)' },
+  iconAccent: { backgroundColor: 'rgba(249,115,22,0.12)' },
+  cardHeadText: { flex: 1, gap: 2 },
   cardTitle: { ...type.subtitle, color: colors.text },
-  cardBody: { ...type.body, color: colors.textSecondary },
+  cardHint: { ...type.caption, color: colors.textMuted },
+  fieldLabel: { ...type.label, color: colors.text, marginTop: -space.xs },
   trust: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.sm,
-    marginTop: space.sm,
+    paddingVertical: space.lg,
+    paddingBottom: space.xxl,
   },
   trustText: { ...type.caption, color: colors.textMuted },
 });

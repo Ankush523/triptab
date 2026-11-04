@@ -8,6 +8,8 @@ import type {
   TripPing,
 } from './protocol.ts';
 
+export type MemberRosterEntry = { id: string; name: string };
+
 export type MemberView = {
   title: string;
   currency: string;
@@ -15,6 +17,8 @@ export type MemberView = {
   memberCount: number;
   myMemberId: string | null;
   myName: string | null;
+  /** Everyone in the trip (from host ledger snapshots). */
+  roster: MemberRosterEntry[];
   ledger: LedgerSnapshot | null;
   pings: TripPing[];
   full: boolean;
@@ -38,6 +42,8 @@ export class TripMember {
   private closed = false;
   private rejectReason: string | null = null;
   private readonly peers = new Set<string>();
+  /** Mesh peer id of the trip host — only this peer gets `{ t: 'join' }`. */
+  private hostPeerId: string | null = null;
   private readonly net: Send;
   private readonly me: Me;
   private readonly onChange: (view: MemberView) => void;
@@ -57,9 +63,15 @@ export class TripMember {
 
   peerUp(id: string) {
     if (id === this.me.id) return;
+    const isNew = !this.peers.has(id);
     this.peers.add(id);
-    this.net.send(id, { t: 'hello' });
-    if (this.myName) this.net.send(id, { t: 'join', name: this.myName });
+    if (!isNew) return;
+    if (id === this.hostPeerId) {
+      this.net.send(id, { t: 'hello' });
+      if (this.myName) this.net.send(id, { t: 'join', name: this.myName });
+    } else {
+      this.net.send(id, { t: 'hello' });
+    }
     this.push();
   }
 
@@ -69,9 +81,7 @@ export class TripMember {
 
   setDisplayName(name: string) {
     this.myName = name.trim().slice(0, 24) || 'Traveler';
-    for (const peer of this.peers) {
-      this.net.send(peer, { t: 'join', name: this.myName });
-    }
+    this.sendJoinToHost();
     this.push();
   }
 
@@ -91,8 +101,11 @@ export class TripMember {
         this.push();
         return;
       case 'ledger':
-        if (!this.ledger || m.snapshot.version > this.ledger.version) {
-          this.ledger = m.snapshot;
+        if (!this.ledger || m.snapshot.version >= this.ledger.version) {
+          this.ledger = {
+            ...m.snapshot,
+            memberNames: m.snapshot.memberNames ?? {},
+          };
         }
         this.push();
         return;
@@ -137,10 +150,26 @@ export class TripMember {
     this.setDisplayName(name);
   }
 
-  submitExpense(expense: Expense) {
-    for (const peer of this.peers) {
-      this.net.send(peer, { t: 'expense_add', expense });
+  /** User chose a host in discovery — start the app-level join immediately (mesh may queue until linked). */
+  pickHost(hostPeerId: string, displayName: string) {
+    this.myName = displayName.trim().slice(0, 24) || 'Traveler';
+    if (hostPeerId && hostPeerId !== this.me.id) {
+      this.hostPeerId = hostPeerId;
+      this.peers.add(hostPeerId);
+      this.net.send(hostPeerId, { t: 'hello' });
+      this.sendJoinToHost();
     }
+    this.push();
+  }
+
+  private sendJoinToHost() {
+    if (!this.myName || !this.hostPeerId || this.hostPeerId === this.me.id) return;
+    this.net.send(this.hostPeerId, { t: 'join', name: this.myName });
+  }
+
+  submitExpense(expense: Expense) {
+    const to = this.hostPeerId ?? [...this.peers][0];
+    if (to) this.net.send(to, { t: 'expense_add', expense });
   }
 
   private applyExpenseEcho(expense: Expense) {
@@ -152,6 +181,24 @@ export class TripMember {
     };
   }
 
+  private buildRoster(): MemberRosterEntry[] {
+    const names = this.ledger?.memberNames ?? {};
+    const ids = new Set<string>();
+    if (this.ledger) {
+      for (const id of Object.keys(this.ledger.balances)) ids.add(id);
+    }
+    if (this.myMemberId) ids.add(this.myMemberId);
+    return [...ids]
+      .sort()
+      .map(id => ({
+        id,
+        name:
+          id === this.myMemberId
+            ? this.myName?.trim() || names[id] || 'You'
+            : names[id]?.trim() || id,
+      }));
+  }
+
   private push() {
     this.revision++;
     this.view = {
@@ -161,6 +208,7 @@ export class TripMember {
       memberCount: this.memberCount,
       myMemberId: this.myMemberId,
       myName: this.myName,
+      roster: this.buildRoster(),
       ledger: this.ledger,
       pings: [...this.pings],
       full: this.full,

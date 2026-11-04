@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { newExpenseId } from '../../../engine/ledger';
 import type { Expense, Member } from '../../../engine/protocol';
 import { AppButton } from '../components/AppButton';
@@ -37,6 +38,15 @@ export function AddExpenseModal({
   const [error, setError] = useState<string | null>(null);
 
   const participantIds = useMemo(() => [...selected], [selected]);
+
+  const memberIds = useMemo(() => members.map(m => m.id).join(','), [members]);
+
+  useEffect(() => {
+    if (!visible) return;
+    setPayerId(myMemberId);
+    setSelected(new Set(members.map(m => m.id)));
+    setError(null);
+  }, [visible, myMemberId, memberIds, members]);
 
   const toggle = (id: string) => {
     setSelected(prev => {
@@ -82,10 +92,16 @@ export function AddExpenseModal({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={styles.sheet}>
+      <SafeAreaView style={styles.sheet} edges={['top', 'left', 'right']}>
         <View style={styles.handle} />
         <Text style={styles.title}>Add expense</Text>
-        <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.form}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="automatic"
+        >
           <AppTextField label="Description" value={label} onChangeText={setLabel} placeholder="Dinner, gas, tickets…" />
           <AppTextField
             label={`Amount (${currency})`}
@@ -120,11 +136,13 @@ export function AddExpenseModal({
           ))}
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </ScrollView>
-        <View style={styles.actions}>
-          <AppButton label="Save expense" onPress={save} />
-          <AppButton label="Cancel" variant="ghost" onPress={onClose} />
-        </View>
-      </View>
+        <SafeAreaView edges={['bottom']} style={styles.actionsSafe}>
+          <View style={styles.actions}>
+            <AppButton label="Save expense" onPress={save} />
+            <AppButton label="Cancel" variant="ghost" onPress={onClose} />
+          </View>
+        </SafeAreaView>
+      </SafeAreaView>
     </Modal>
   );
 }
@@ -140,17 +158,19 @@ function parseMoneyToCents(input: string): number | null {
 }
 
 const styles = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: colors.bg, padding: space.lg },
+  sheet: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: space.lg },
+  scroll: { flex: 1, minHeight: 0 },
   handle: {
     alignSelf: 'center',
     width: 40,
     height: 4,
     borderRadius: radii.pill,
     backgroundColor: colors.border,
+    marginTop: space.sm,
     marginBottom: space.md,
   },
   title: { ...type.title, color: colors.text, marginBottom: space.md },
-  form: { gap: space.md, paddingBottom: space.xl },
+  form: { gap: space.md, paddingBottom: space.lg },
   section: { ...type.label, color: colors.textSecondary, marginTop: space.sm },
   chip: {
     paddingVertical: 12,
@@ -161,9 +181,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgElevated,
     marginBottom: space.sm,
   },
-  chipActive: { borderColor: colors.primary, backgroundColor: 'rgba(37,99,235,0.08)' },
+  chipActive: { borderColor: colors.primary, backgroundColor: 'rgba(37,99,235,0.1)' },
   chipText: { ...type.body, color: colors.text },
   chipTextActive: { color: colors.primary, fontWeight: '600' },
   error: { ...type.caption, color: colors.danger },
-  actions: { gap: space.sm, paddingBottom: space.lg },
+  actionsSafe: { backgroundColor: colors.bg },
+  actions: { gap: space.sm, paddingTop: space.sm, paddingBottom: space.sm },
 });

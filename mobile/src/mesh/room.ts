@@ -63,7 +63,7 @@ export type RoomSnapshot = {
 const TICK_MS = 2000;
 const HOST_TTL_MS = 20_000; // a host that stops answering discovery disappears from the list
 const DISCOVER_MIN_INTERVAL_MS = 6000; // discovery queries flood BLE, so throttle them
-const NEIGHBOR_SETTLE_MS = 2000; // a fresh BLE link needs a moment before a join request survives
+const NEIGHBOR_SETTLE_MS = 2000; // fresh BLE link needs a moment before a join request survives
 const JOIN_RETRY_MS = 8000;
 const JOIN_TIMEOUT_MS = 90_000;
 const PEER_LOST_GRACE_MS = 20_000; // BLE links flap; only drop a peer that stays gone
@@ -164,7 +164,9 @@ export class NearbyRoom {
     this.joinStartedAt = Date.now();
     this.lastJoinRequestAt = 0;
     this.update({ status: 'joining', hostId });
-    await this.sendJoinRequest();
+    const p = this.protocol;
+    if (p) await this.primeSession(hostId);
+    await this.sendJoinRequestAfterSettle(hostId);
   };
 
   /** Sends JSON-serializable `data` to one connected peer. Throws if it is over the size limit. */
@@ -298,6 +300,12 @@ export class NearbyRoom {
         if (event.transport.toLowerCase() !== 'ble') return;
         this.noteNeighbor(event.peer_id);
         if (this.snapshot.status === 'discovering') void this.refreshDiscovery();
+        if (
+          this.snapshot.status === 'joining' &&
+          event.peer_id === this.snapshot.hostId
+        ) {
+          void this.primeSession(event.peer_id).then(() => this.sendJoinRequest(true));
+        }
         break;
       case 'neighbor_lost':
         this.neighbors.delete(event.peer_id);
@@ -315,6 +323,14 @@ export class NearbyRoom {
         break;
       case 'connection_rejected':
         if (this.isJoining(event.rejected_by)) this.fail(new Error('The host turned down the request.'));
+        break;
+      case 'connection_request_undeliverable':
+        if (
+          this.snapshot.status === 'joining' &&
+          event.recipient === this.snapshot.hostId
+        ) {
+          void this.primeSession(event.recipient).then(() => this.sendJoinRequest(true));
+        }
         break;
       case 'message_received':
         this.onMessage(event.sender, event.content);
@@ -339,6 +355,7 @@ export class NearbyRoom {
       if (hosts !== this.snapshot.hosts) this.update({ hosts });
       void this.refreshDiscovery();
     } else if (status === 'joining') {
+      void this.ensureHostNeighbor();
       if (Date.now() - this.joinStartedAt > JOIN_TIMEOUT_MS) {
         this.fail(new Error(this.accepted.size ? 'Joined, but the shared group never arrived. Try again.' : 'The host did not answer. Move closer and try again.'));
       } else if (!this.accepted.has(this.snapshot.hostId ?? '') && Date.now() - this.lastJoinRequestAt > JOIN_RETRY_MS) {
@@ -367,7 +384,7 @@ export class NearbyRoom {
   /** Gives the auto key exchange a nudge so the encrypted 1:1 session is ready sooner. */
   private async primeSession(peerId: string) {
     const p = this.protocol;
-    for (let attempt = 0, delay = 100; p && attempt < 6; attempt++, delay = Math.min(delay * 2, 400)) {
+    for (let attempt = 0, delay = 100; p && attempt < 12; attempt++, delay = Math.min(delay * 2, 400)) {
       const state = await p.getEstablishmentState(peerId).catch(() => null);
       if (state === 'SessionConfirmed' || state === 'SessionPending') return;
       if (state === 'HaveKeyPackage') await p.establishSecureSession(peerId).catch(() => {});
@@ -406,8 +423,25 @@ export class NearbyRoom {
     }
   }
 
+  private async ensureHostNeighbor() {
+    const hostId = this.snapshot.hostId;
+    if (!hostId || this.neighbors.has(hostId)) return;
+    const p = this.protocol;
+    if (!p) return;
+    try {
+      const topology = await p.getTopology();
+      for (const link of topology.links) {
+        if (link.transport.toLowerCase() !== 'ble') continue;
+        if (link.from === topology.local_user_id && link.to === hostId) this.noteNeighbor(hostId);
+        if (link.to === topology.local_user_id && link.from === hostId) this.noteNeighbor(hostId);
+      }
+    } catch {
+      /* topology may lag while joining */
+    }
+  }
+
   private onAnnouncement(event: Parameters<typeof hostFromAnnouncement>[0]) {
-    if (this.snapshot.status !== 'discovering') return;
+    if (this.snapshot.status !== 'discovering' && this.snapshot.status !== 'joining') return;
     const host = hostFromAnnouncement(event, this.serviceId, this.snapshot.localId, Date.now());
     if (!host) return;
     // Discovery gossips across hops; only list hosts we have a direct link to.
@@ -424,12 +458,27 @@ export class NearbyRoom {
     return this.snapshot.role === 'member' && this.snapshot.status === 'joining' && peerId === this.snapshot.hostId;
   }
 
-  private async sendJoinRequest() {
+  /** User tapped a host — wait out link settle, then send (do not no-op silently). */
+  private async sendJoinRequestAfterSettle(hostId: string) {
+    const firstSeen = this.neighbors.get(hostId);
+    if (firstSeen !== undefined) {
+      const wait = NEIGHBOR_SETTLE_MS - (Date.now() - firstSeen);
+      if (wait > 0) await pause(wait);
+    }
+    await this.sendJoinRequest(true);
+  }
+
+  private async sendJoinRequest(force = false) {
     const p = this.protocol;
     const { hostId } = this.snapshot;
     if (!p || !hostId || this.snapshot.status !== 'joining') return;
     const firstSeen = this.neighbors.get(hostId);
-    if (firstSeen === undefined || Date.now() - firstSeen < NEIGHBOR_SETTLE_MS) return; // the tick retries
+    if (
+      !force &&
+      (firstSeen === undefined || Date.now() - firstSeen < NEIGHBOR_SETTLE_MS)
+    ) {
+      return; // background tick will retry
+    }
     this.lastJoinRequestAt = Date.now();
     await p.sendConnectionRequest({ recipient: hostId, senderName: this.name }).catch(error => {
       log(this.options.appId, 'join request failed', errorMessage(error));
@@ -516,8 +565,20 @@ export class NearbyRoom {
     const envelope = decodeEnvelope(content, MAX_MESSAGE_BYTES);
     if (!envelope) return;
     if (!this.accepted.has(from)) {
-      if (!this.isJoining(from)) return; // not part of this room
-      this.onAccepted();
+      if (
+        this.snapshot.role === 'host' &&
+        this.snapshot.status === 'hosting' &&
+        from !== this.snapshot.localId
+      ) {
+        const joinName = joinNameFromAppEnvelope(envelope);
+        this.accepted.set(from, cleanName(joinName, 'Guest'));
+        this.backInRange(from);
+        void this.primeSession(from);
+      } else if (!this.isJoining(from)) {
+        return;
+      } else {
+        this.onAccepted();
+      }
     }
     this.backInRange(from);
     if (envelope.t === 'app') {
@@ -599,4 +660,12 @@ function protocolConfig({ appId, group = false }: RoomOptions): ProtocolConfig {
 
 function log(appId: string, ...args: unknown[]) {
   if (__DEV__) console.log(`[${appId}]`, ...args);
+}
+
+function joinNameFromAppEnvelope(envelope: Envelope): unknown {
+  if (envelope.t !== 'app') return undefined;
+  const d = envelope.d;
+  if (!d || typeof d !== 'object') return undefined;
+  const msg = d as { t?: string; name?: unknown };
+  return msg.t === 'join' ? msg.name : undefined;
 }

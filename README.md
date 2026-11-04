@@ -14,17 +14,22 @@
 ## Setup
 
 ```bash
-npm install
-npm test                 # engine tests
-npm run mobile:start     # Metro
+cd /Users/ankush/Developer/triptab   # repo root — required for workspaces + patches
+npm install                          # runs patch-package (RN codegen + react-native-screens)
+npm test                             # engine tests
+npm run mobile:start                 # Metro
 ```
+
+After every `npm install`, `patch-package` must succeed. If iOS pod install fails with `showColumn` / `ElementRef`, run `npm install` from the **repo root**, not only inside `mobile/`.
 
 ### iOS (physical device recommended for mesh)
 
 ```bash
-cd mobile/ios && bundle exec pod install && cd ../..
+npm run ios:pods -w triptab-mobile   # Gemfile in mobile/ios → bundle + pod install
 npm run ios -w triptab-mobile
 ```
+
+**Ruby 3.4+ / Homebrew Ruby 4.x:** `mobile/Gemfile` includes `nkf` (replaces removed `kconv`). If `pod install` still fails, use Ruby **3.3.x** (see `mobile/.ruby-version`) via `rbenv`/`mise`, then `cd mobile && bundle install && cd ios && bundle exec pod install`.
 
 ### Android
 

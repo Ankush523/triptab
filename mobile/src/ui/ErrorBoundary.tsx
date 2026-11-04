@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, space, type } from '../theme/tokens';
 
 type Props = { children: React.ReactNode };
@@ -15,10 +16,10 @@ export class ErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <View style={styles.wrap}>
+        <SafeAreaView style={styles.wrap} edges={['top', 'bottom', 'left', 'right']}>
           <Text style={styles.title}>Something went wrong</Text>
           <Text style={styles.body}>{this.state.error.message}</Text>
-        </View>
+        </SafeAreaView>
       );
     }
     return this.props.children;
